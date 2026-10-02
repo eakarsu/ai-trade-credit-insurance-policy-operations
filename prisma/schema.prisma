@@ -1,0 +1,362 @@
+// Generated schema — modeled after beautyhqio conventions.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  active       Boolean @default(true)
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(ANALYST)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  ANALYST
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String?
+  action    String
+  entity    String
+  entityId  String?
+  detail    String?
+  createdAt DateTime @default(now())
+}
+
+model WorkflowAnalysis {
+ id String @id @default(cuid())
+ actorId String
+ workflow String
+ subjectEntity String
+ subjectId String
+ input Json
+ evidence Json
+ evidenceHash String
+ result Json
+ model String
+ receipt String?
+ createdAt DateTime @default(now())
+ @@index([workflow, createdAt])
+}
+model RecordReview {
+ id String @id @default(cuid())
+ actorId String
+ entity String
+ entityId String
+ version String
+ reason String
+ createdAt DateTime @default(now())
+ @@unique([entity, entityId, version, actorId])
+}
+model UsageBucket {
+ id String @id
+ calls Int
+}
+model IssuedCredential {
+ token String @id
+ entity String
+ entityId String
+ version String
+ assertion Json
+ createdAt DateTime @default(now())
+ revokedAt DateTime?
+ @@index([entity, entityId, createdAt])
+}
+
+model DomainArtifact {
+ id String @id @default(cuid())
+ subjectEntity String
+ subjectId String
+ title String
+ content String
+ contentHash String
+ actorId String
+ approvedBy String?
+ createdAt DateTime @default(now())
+ @@index([subjectEntity, subjectId])
+}
+
+model RecordApproval {
+ id String @id
+ version String
+}
+model DomainExecution {
+ id String @id
+ actorId String
+ connectorId String
+ action String
+ subjectEntity String
+ subjectId String
+ version String
+ status String
+ result Json?
+ createdAt DateTime @default(now())
+}
+
+model WorkSession {
+ id String @id @default(cuid())
+ actorId String
+ respondentId String
+ subjectEntity String
+ subjectId String
+ questions Json
+ answers Json
+ currentQuestion String?
+ status String
+ deadline DateTime
+ createdAt DateTime @default(now())
+ @@index([respondentId, createdAt])
+}
+model SessionMedia {
+ id String @id @default(cuid())
+ sessionId String
+ questionId String
+ actorId String
+ contentType String
+ bytes Bytes
+ contentHash String
+ createdAt DateTime @default(now())
+ @@index([sessionId])
+}
+
+model AppSetting {
+ id String @id
+ value Json
+ updatedAt DateTime @updatedAt
+}
+
+model InsurancePolicy {
+ id String @id @default(cuid())
+ name String
+ policyNumber String
+ insurer String
+ currency String
+ inception DateTime
+ expiry DateTime
+ status String @default("Draft")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ inverseInsuredBuyer_insurancePolicyId InsuredBuyer[] @relation("InsuredBuyer_insurancePolicyId")
+ inversePolicyCondition_insurancePolicyId PolicyCondition[] @relation("PolicyCondition_insurancePolicyId")
+ inverseInsuredShipment_insurancePolicyId InsuredShipment[] @relation("InsuredShipment_insurancePolicyId")
+ inverseBuyerPayment_insurancePolicyId BuyerPayment[] @relation("BuyerPayment_insurancePolicyId")
+ inverseOverdueNotice_insurancePolicyId OverdueNotice[] @relation("OverdueNotice_insurancePolicyId")
+ inverseCreditClaim_insurancePolicyId CreditClaim[] @relation("CreditClaim_insurancePolicyId")
+ inverseClaimEvidence_insurancePolicyId ClaimEvidence[] @relation("ClaimEvidence_insurancePolicyId")
+ inverseInsurerDecision_insurancePolicyId InsurerDecision[] @relation("InsurerDecision_insurancePolicyId")
+ inverseOperationalTask_insurancePolicyId OperationalTask[] @relation("OperationalTask_insurancePolicyId")
+ inverseRuleVersion_insurancePolicyId RuleVersion[] @relation("RuleVersion_insurancePolicyId")
+ inverseDocumentRequirement_insurancePolicyId DocumentRequirement[] @relation("DocumentRequirement_insurancePolicyId")
+}
+
+model InsuredBuyer {
+ id String @id @default(cuid())
+ name String
+ buyerCode String
+ country String
+ limitCents Int
+ validUntil DateTime
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsurancePolicyId InsurancePolicy @relation("InsuredBuyer_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+ inverseInsuredShipment_insuredBuyerId InsuredShipment[] @relation("InsuredShipment_insuredBuyerId")
+ inverseCreditClaim_insuredBuyerId CreditClaim[] @relation("CreditClaim_insuredBuyerId")
+}
+
+model PolicyCondition {
+ id String @id @default(cuid())
+ title String
+ clauseNumber String
+ version String
+ conditionText String
+ noticeDays Int
+ effectiveAt DateTime
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsurancePolicyId InsurancePolicy @relation("PolicyCondition_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model InsuredShipment {
+ id String @id @default(cuid())
+ title String
+ insuredBuyerId String
+ invoiceNumber String
+ shippedAt DateTime
+ amountCents Int
+ dueAt DateTime
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsuredBuyerId InsuredBuyer @relation("InsuredShipment_insuredBuyerId", fields: [insuredBuyerId], references: [id], onDelete: Restrict)
+ linkedInsurancePolicyId InsurancePolicy @relation("InsuredShipment_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+ inverseBuyerPayment_insuredShipmentId BuyerPayment[] @relation("BuyerPayment_insuredShipmentId")
+ inverseOverdueNotice_insuredShipmentId OverdueNotice[] @relation("OverdueNotice_insuredShipmentId")
+}
+
+model BuyerPayment {
+ id String @id @default(cuid())
+ title String
+ insuredShipmentId String
+ receivedAt DateTime
+ amountCents Int
+ reference String
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsuredShipmentId InsuredShipment @relation("BuyerPayment_insuredShipmentId", fields: [insuredShipmentId], references: [id], onDelete: Restrict)
+ linkedInsurancePolicyId InsurancePolicy @relation("BuyerPayment_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model OverdueNotice {
+ id String @id @default(cuid())
+ title String
+ insuredShipmentId String
+ notifiedAt DateTime
+ channel String
+ receipt String?
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsuredShipmentId InsuredShipment @relation("OverdueNotice_insuredShipmentId", fields: [insuredShipmentId], references: [id], onDelete: Restrict)
+ linkedInsurancePolicyId InsurancePolicy @relation("OverdueNotice_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model CreditClaim {
+ id String @id @default(cuid())
+ title String
+ insuredBuyerId String
+ lossCents Int
+ deductibleCents Int
+ lossDate DateTime
+ rationale String
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsuredBuyerId InsuredBuyer @relation("CreditClaim_insuredBuyerId", fields: [insuredBuyerId], references: [id], onDelete: Restrict)
+ linkedInsurancePolicyId InsurancePolicy @relation("CreditClaim_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+ inverseClaimEvidence_creditClaimId ClaimEvidence[] @relation("ClaimEvidence_creditClaimId")
+ inverseInsurerDecision_creditClaimId InsurerDecision[] @relation("InsurerDecision_creditClaimId")
+}
+
+model ClaimEvidence {
+ id String @id @default(cuid())
+ title String
+ creditClaimId String
+ evidenceType String
+ sourceReference String
+ receivedAt DateTime
+ notes String
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedCreditClaimId CreditClaim @relation("ClaimEvidence_creditClaimId", fields: [creditClaimId], references: [id], onDelete: Restrict)
+ linkedInsurancePolicyId InsurancePolicy @relation("ClaimEvidence_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model InsurerDecision {
+ id String @id @default(cuid())
+ title String
+ creditClaimId String
+ decisionText String
+ awardedCents Int
+ decisionAt DateTime
+ receipt String
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedCreditClaimId CreditClaim @relation("InsurerDecision_creditClaimId", fields: [creditClaimId], references: [id], onDelete: Restrict)
+ linkedInsurancePolicyId InsurancePolicy @relation("InsurerDecision_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model OperationalTask {
+ id String @id @default(cuid())
+ title String
+ owner String
+ priority String
+ startAt DateTime
+ dueAt DateTime
+ done Boolean
+ notes String?
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsurancePolicyId InsurancePolicy @relation("OperationalTask_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model RuleVersion {
+ id String @id @default(cuid())
+ title String
+ jurisdiction String
+ version String
+ effectiveAt DateTime
+ expiresAt DateTime?
+ sourceUrl String
+ requirementText String
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsurancePolicyId InsurancePolicy @relation("RuleVersion_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
+
+model DocumentRequirement {
+ id String @id @default(cuid())
+ title String
+ category String
+ requiredBy DateTime
+ sourceReference String
+ evidenceReference String?
+ reviewNotes String?
+ status String @default("Draft")
+ insurancePolicyId String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
+ @@index([insurancePolicyId])
+ linkedInsurancePolicyId InsurancePolicy @relation("DocumentRequirement_insurancePolicyId", fields: [insurancePolicyId], references: [id], onDelete: Restrict)
+}
